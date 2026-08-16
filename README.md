@@ -105,9 +105,13 @@ open http://localhost:4200
 ├── opensearch/                 # OpenSearch security configs
 ├── localstack/init/            # LocalStack initialization
 ├── docs/                       # Documentation
+│   ├── README.md               # Documentation index
 │   ├── aws-sigv4/             # AWS SigV4 documentation
+│   ├── learning/              # Technology learning guides
 │   └── sdlc/                  # Software development lifecycle
-│       ├── requirements.md   # Requirements document
+│       ├── requirements/     # Requirements documents
+│       ├── analysis/         # Analysis documents
+│       ├── design/           # Design documents
 │       ├── plan.md           # Implementation plan
 │       └── TASK_TRACKER.md   # Project status tracker
 ├── README.md                   # This file
