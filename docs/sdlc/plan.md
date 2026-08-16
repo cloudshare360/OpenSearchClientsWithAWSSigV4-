@@ -15,8 +15,10 @@ OpenSearchClientsWithAWSSigV4-/
 │   │   ├── README.md
 │   │   ├── index.md
 │   │   └── raw-content.md
-│   ├── plan.md
-│   └── requirements.md
+│   └── sdlc/
+│       ├── requirements.md
+│       ├── plan.md
+│       └── TASK_TRACKER.md
 ├── spring-boot-rest/
 │   ├── src/main/java/com/example/opensearch/
 │   │   ├── config/
@@ -262,8 +264,8 @@ OpenSearchClientsWithAWSSigV4-/
 
 #### Deliverables
 - `README.md`
-- `docs/requirements.md`
-- `docs/plan.md`
+- `docs/sdlc/requirements.md`
+- `docs/sdlc/plan.md`
 
 ---
 

@@ -106,11 +106,11 @@ open http://localhost:4200
 ├── localstack/init/            # LocalStack initialization
 ├── docs/                       # Documentation
 │   ├── aws-sigv4/             # AWS SigV4 documentation
-│   ├── plan.md                # Implementation plan
-│   ├── requirements.md        # Requirements document
-│   └── TASK_TRACKER.md        # Project status tracker
+│   └── sdlc/                  # Software development lifecycle
+│       ├── requirements.md   # Requirements document
+│       ├── plan.md           # Implementation plan
+│       └── TASK_TRACKER.md   # Project status tracker
 ├── README.md                   # This file
-└── REQUIREMENTS.md             # Detailed requirements
 ```
 
 ## Technology Stack
