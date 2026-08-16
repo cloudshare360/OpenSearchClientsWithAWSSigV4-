@@ -1,0 +1,8 @@
+{
+  "admin": {
+    "description": "Admin user",
+    "password": "admin",
+    "backend_roles": ["admin"],
+    "opendistro_security_roles": ["admin"]
+  }
+}

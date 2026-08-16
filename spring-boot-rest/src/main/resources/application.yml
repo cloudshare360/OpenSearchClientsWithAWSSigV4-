@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: spring-boot-rest
+  datasource:
+    url: jdbc:postgresql://localhost:5432/employeedb
+    username: admin
+    password: admin123
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+  thymeleaf:
+    cache: false
+    prefix: file:src/main/resources/templates/
+  batch:
+    job:
+      enabled: false
+
+server:
+  port: 8080
+  address: 0.0.0.0
+
+aws:
+  region: us-east-1
+  credentials:
+    access-key: ${AWS_ACCESS_KEY_ID:test}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:test}
+    session-token: ${AWS_SESSION_TOKEN:}
+  secrets-manager:
+    enabled: true
+    secret-name: opensearch/credentials
+    rotation-lambda-name: opensearch-rotation-lambda
+    refresh-interval: 300000
+  opensearch:
+    endpoint: http://opensearch-node:9200
+    index: employees
+    connection-timeout: 30s
+    socket-timeout: 60s
+    max-retries: 3
+    retry-backoff: 1000
+
+logging:
+  level:
+    com.example.opensearch: DEBUG
+    org.opensearch.client: DEBUG
+    software.amazon.awssdk: DEBUG
+    org.springframework.retry: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+app:
+  batch:
+    trigger:
+      enabled: true
+      cron: "0 */5 * * * *"

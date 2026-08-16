@@ -1,0 +1,228 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: employee-postgres
+    environment:
+      POSTGRES_DB: employeedb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d employeedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  opensearch-node:
+    image: opensearchproject/opensearch:2.19.0
+    container_name: opensearch-node
+    environment:
+      - discovery.type=single-node
+      - plugins.security.disabled=false
+      - plugins.security.ssl.http.enabled=false
+      - plugins.security.authcz.admin_dn=CN=admin,OU=admin,O=admin,L=admin,ST=admin,C=admin
+      - plugins.security.audit.type=internal_opensearch
+      - plugins.security.enable_sigv4_support=true
+      - OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+      - ./opensearch/security/config:/usr/share/opensearch/config/security/config
+      - ./opensearch/certs:/usr/share/opensearch/config/ssl
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - app-network
+
+  localstack:
+    image: localstack/localstack:3.5
+    container_name: localstack
+    environment:
+      - SERVICES=iam,secretsmanager,sts
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack_data:/tmp/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./localstack/init:/docker-entrypoint-initaws.d
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal secretsmanager list-secrets || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - app-network
+
+  data-generator:
+    image: alpine:3.19
+    container_name: data-generator
+    depends_on:
+      postgres:
+        condition: service_healthy
+      opensearch-node:
+        condition: service_healthy
+    volumes:
+      - ./scripts:/scripts
+    command: >
+      sh -c "
+        apk add --no-cache curl postgresql-client python3 py3-pip jq &&
+        pip install faker &&
+        python3 /scripts/generate_employees.py &&
+        chmod +x /scripts/populate_opensearch.sh &&
+        /scripts/populate_opensearch.sh
+      "
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin123
+      - POSTGRES_DB=employeedb
+      - OPENSEARCH_HOST=opensearch-node
+      - OPENSEARCH_PORT=9200
+    networks:
+      - app-network
+
+  aws-init:
+    image: amazon/aws-cli:2.17
+    container_name: aws-init
+    depends_on:
+      localstack:
+        condition: service_healthy
+      opensearch-node:
+        condition: service_healthy
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+      - LOCALSTACK_ENDPOINT=http://localstack:4566
+    volumes:
+      - ./scripts:/scripts
+    command: >
+      sh -c "
+        sleep 10 &&
+        python3 /scripts/aws_setup.py
+      "
+    networks:
+      - app-network
+
+  spring-boot-rest:
+    build:
+      context: ./spring-boot-rest
+      dockerfile: Dockerfile
+    container_name: spring-boot-rest
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/employeedb
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=admin123
+      - AWS_REGION=us-east-1
+      - OPENSEARCH_ENDPOINT=https://opensearch-node:9200
+      - LOCALSTACK_ENDPOINT=http://localstack:4566
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_SECRETS_MANAGER_ENABLED=true
+      - AWS_SECRETS_MANAGER_SECRET_NAME=opensearch/credentials
+      - APP_BATCH_TRIGGER_ENABLED=true
+      - APP_BATCH_TRIGGER_URL=http://spring-boot-batch:8081/batch/run
+      - OPENSEARCH_ENDPOINT=http://opensearch-node:9200
+    depends_on:
+      postgres:
+        condition: service_healthy
+      opensearch-node:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      aws-init:
+        condition: service_completed_successfully
+      data-generator:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - app-network
+
+  spring-boot-batch:
+    build:
+      context: ./spring-boot-batch
+      dockerfile: Dockerfile
+    container_name: spring-boot-batch
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/employeedb
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=admin123
+      - AWS_REGION=us-east-1
+      - OPENSEARCH_ENDPOINT=https://opensearch-node:9200
+      - LOCALSTACK_ENDPOINT=http://localstack:4566
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_SECRETS_MANAGER_ENABLED=true
+      - AWS_SECRETS_MANAGER_SECRET_NAME=opensearch/credentials
+      - BATCH_SCHEDULE_ENABLED=true
+      - BATCH_SCHEDULE_CRON=0 */5 * * * *
+      - OPENSEARCH_ENDPOINT=http://opensearch-node:9200
+    depends_on:
+      postgres:
+        condition: service_healthy
+      opensearch-node:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      aws-init:
+        condition: service_completed_successfully
+      spring-boot-rest:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - app-network
+
+  angular-ui:
+    build:
+      context: ./angular-ui
+      dockerfile: Dockerfile
+    container_name: angular-ui
+    ports:
+      - "4200:4200"
+    environment:
+      - API_URL=http://spring-boot-rest:8080/api
+      - BATCH_URL=http://spring-boot-batch:8081/batch
+    depends_on:
+      spring-boot-rest:
+        condition: service_healthy
+      spring-boot-batch:
+        condition: service_healthy
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+  opensearch_data:
+  localstack_data:
+
+networks:
+  app-network:
+    driver: bridge

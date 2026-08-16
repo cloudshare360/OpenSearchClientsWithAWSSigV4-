@@ -1,0 +1,59 @@
+{
+  "config": {
+    "dynamic": {
+      "plugins": {
+        "security": {
+          "ssl": {
+            "http": {
+              "enabled": false
+            }
+          },
+          "authc": {
+            "basic_internal_auth_domain": {
+              "description": "Authenticate via internal user database",
+              "http_enabled": true,
+              "transport_enabled": true,
+              "order": 0,
+              "http_authenticator": {
+                "challenge": false,
+                "type": "basic"
+              },
+              "authentication_backend": {
+                "type": "intern"
+              }
+            },
+            "auth_backend_domain": {
+              "description": "Authenticate via backend role",
+              "http_enabled": true,
+              "transport_enabled": true,
+              "order": 1,
+              "http_authenticator": {
+                "challenge": false,
+                "type": "basic"
+              },
+              "authentication_backend": {
+                "type": "basicauth",
+                "config": {
+                  "http_authenticator": {
+                    "challenge": true
+                  }
+                }
+              },
+              "authorization_backend": {
+                "type": "roles"
+              }
+            }
+          },
+          "authz": {
+            "roles_from_remote_role_mapping": {
+              "enabled": true,
+              "user_backend": {
+                "type": "noop"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

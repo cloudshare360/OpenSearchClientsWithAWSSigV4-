@@ -1,0 +1,39 @@
+{
+  "admin": {
+    "description": "Admin role with full access",
+    "index_permissions": [
+      {
+        "index_patterns": ["*"],
+        "allowed_actions": ["*"]
+      }
+    ],
+    "cluster_permissions": ["*"]
+  },
+  "employee-reader": {
+    "description": "Read-only access to employee index",
+    "index_permissions": [
+      {
+        "index_patterns": ["employees"],
+        "allowed_actions": [
+          "indices:data/read/search",
+          "indices:data/read/get"
+        ]
+      }
+    ],
+    "cluster_permissions": ["cluster:monitor/health"]
+  },
+  "employee-writer": {
+    "description": "Write access to employee index",
+    "index_permissions": [
+      {
+        "index_patterns": ["employees"],
+        "allowed_actions": [
+          "indices:data/write/index",
+          "indices:data/write/bulk",
+          "indices:data/write/delete"
+        ]
+      }
+    ],
+    "cluster_permissions": ["cluster:monitor/health"]
+  }
+}
